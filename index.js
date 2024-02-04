@@ -36,32 +36,72 @@ app.post("/orders", async (req, res) => {
   console.log(userOrder);
   console.log(ordernum);
   try {
-    const order = await OrderModel.create({
-      email: userOrder.email,
-      orderNumber: ordernum,
-      products: userOrder.products,
-      amount: userOrder.amount,
-      paymethod: userOrder.paymethod,
-    });
+    const user = await UserModel.findOne({ email: userOrder.email });
 
-    const Ordermail = `We have received your Order .<br/>
-      Your Order Number:${ordernum}
+    if (!user) {
+      const order = await OrderModel.create({
+        email: userOrder.email,
+        orderNumber: ordernum,
+        products: userOrder.products,
+        amount: userOrder.amount,
+        paymethod: userOrder.paymethod,
+      });
+
+      const user = await UserModel.create({
+        name: userOrder.name,
+        email: userOrder.email,
+        phone: userOrder.phone,
+        address: userOrder.address,
+        pincode: userOrder.pincode,
+      });
+      console.log(order._id);
+      user.orders.push({
+        orderId: order._id,
+        ordernumber: ordernum,
+        amount: userOrder.amount,
+      });
+      const updatedUser = await user.save();
+      res.status(200).json({ message: "Order Created Successfully" });
+    }
+
+    if (user) {
+      const order = await OrderModel.create({
+        email: userOrder.email,
+        orderNumber: ordernum,
+        products: userOrder.products,
+        amount: userOrder.amount,
+        paymethod: userOrder.paymethod,
+      });
+      user.orders.push({
+        orderId: order._id,
+        ordernumber: ordernum,
+        amount: userOrder.amount,
+      });
+      const updatedUser = await user.save();
+
+      const Ordermail = `We have received your Order .<br/>
+    <br/>
+      Your Order Number:${ordernum}<br/>
+      <br/>
       Your Total Amount :${userOrder.amount}
 
     <br/>
-    
-    your order will be delivered within 30 Minutes.
     <br/>
+    your order will be delivered within 30 Minutes.
+    <br/><br/>
     Best Regards,<br/>
     Dan JR Wedding Biriyani`;
-
-    await transporter.sendMail({
-      from: "Doubt Guru <support@doubtguru.in>",
-      to: userOrder.email,
-      subject: "The Special Dan JR Wedding Biriyani",
-      html: Ordermail,
-    });
-    res.status(200).json({ message: "Order Created Successfully" });
+      console.log(Ordermail);
+      const info = await transporter.sendMail({
+        from: "Doubt Guru <support@doubtguru.in>",
+        to: userOrder.email,
+        subject: "The Special Dan JR Wedding Biriyani",
+        html: Ordermail,
+      });
+      console.log("Message sent:" + info.messageId);
+      res.status(200).json({ message: "Order Created Successfully" });
+      console.log("orderPlaced");
+    }
   } catch (error) {
     res.status(500).json({ error: "Internal Server Error" });
   }
